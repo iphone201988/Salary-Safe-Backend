@@ -1,0 +1,11 @@
+emails
+psycopg
+psycopg2-binary
+emails
+pydantic-settings
+passlib
+PyJWT
+sqlmodel
+sentry-sdk
+fastapi[standard]
+alembic
