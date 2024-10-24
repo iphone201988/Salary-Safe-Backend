@@ -35,6 +35,7 @@ def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
 
 
 def create_or_update_user(*, session: Session, user_in: SocialLoginBase):
+    is_new_user = False
     # Check if user with this provider exists
     existing_provider = session.query(SocialProvider).filter(
         SocialProvider.provider == user_in.provider,
@@ -44,11 +45,10 @@ def create_or_update_user(*, session: Session, user_in: SocialLoginBase):
     if existing_provider:
         # User already exists, log them in
         user = existing_provider.user
-        return user
+        return user, is_new_user
 
     # Check if a user with the provided email exists
     user = session.query(User).filter(User.email == user_in.email).first()
-    is_new_user = False
 
     if not user:
         # Create a new user if no user with this email exists
