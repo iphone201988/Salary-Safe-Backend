@@ -14,16 +14,10 @@ from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.models import User
 from app.api.schemas.users import (
-    Message,
-    UpdatePassword,
-    UserCreate,
-    UserPublic,
-    UserRegister,
-    UsersPublic,
-    UserUpdate,
-    UserUpdateMe,
-    RequestDemoBase
+    UpdatePassword, UserCreate, UserPublic, UserRegister,
+    UsersPublic, UserUpdate, UserUpdateMe, RequestDemoBase
 )
+from app.api.schemas.utils import Message
 from app.utils import generate_new_account_email, send_email
 
 router = APIRouter()
@@ -59,7 +53,8 @@ def request_demo(session: SessionDep, user_in: RequestDemoBase) -> Any:
         )
 
     # Check if a demo request has already been submitted with this email
-    request_user = crud.get_request_demo_user(session=session, email=user_in.email)
+    request_user = crud.get_request_demo_user(
+        session=session, email=user_in.email)
     if request_user:
         raise HTTPException(
             status_code=400,
@@ -68,7 +63,8 @@ def request_demo(session: SessionDep, user_in: RequestDemoBase) -> Any:
 
     # Validate and create the demo request
     request_create = RequestDemoBase.model_validate(user_in)
-    user = crud.create_request_demo(session=session, request_create=request_create)
+    user = crud.create_request_demo(
+        session=session, request_create=request_create)
 
     # Return a success message
     return Message(message="Demo requested successfully, our team will contact you shortly")
@@ -79,7 +75,9 @@ def request_demo(session: SessionDep, user_in: RequestDemoBase) -> Any:
     dependencies=[Depends(get_current_active_superuser)],
     response_model=UsersPublic,
 )
-def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
+def read_users(
+    session: SessionDep, skip: int = 0, limit: int = 100
+) -> Any:
     """
     Retrieve users.
     """
@@ -94,7 +92,9 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
 
 
 @router.post(
-    "/", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic
+    "/",
+    dependencies=[Depends(get_current_active_superuser)],
+    response_model=UserPublic
 )
 def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
     """
@@ -154,7 +154,8 @@ def update_password_me(
         raise HTTPException(status_code=400, detail="Incorrect password")
     if body.current_password == body.new_password:
         raise HTTPException(
-            status_code=400, detail="New password cannot be the same as the current one"
+            status_code=400,
+            detail="New password cannot be the same as the current one"
         )
     hashed_password = get_password_hash(body.new_password)
     current_user.hashed_password = hashed_password
@@ -178,7 +179,8 @@ def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
     """
     if current_user.is_superuser:
         raise HTTPException(
-            status_code=403, detail="Super users are not allowed to delete themselves"
+            status_code=403,
+            detail="Super users are not allowed to delete themselves"
         )
     session.delete(current_user)
     session.commit()
@@ -249,7 +251,8 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     if user == current_user:
         raise HTTPException(
-            status_code=403, detail="Super users are not allowed to delete themselves"
+            status_code=403,
+            detail="Super users are not allowed to delete themselves"
         )
     session.delete(user)
     session.commit()

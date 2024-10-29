@@ -12,7 +12,7 @@ from app.core import security
 from app.core.config import settings
 from app.core.db import engine
 from app.models import User
-from app.api.schemas.users import TokenPayload
+from app.api.schemas.utils import TokenPayload
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/swagger"
