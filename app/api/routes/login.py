@@ -13,9 +13,9 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.api.schemas.login import LoginBase, SocialLoginBase
 from app.api.schemas.users import (
-    Message, NewPassword, Token,
-    SocialLoginToken, UserPublic, ResetPasswordResponse
+    NewPassword, UserPublic, ResetPasswordResponse
 )
+from app.api.schemas.utils import Message, Token, SocialLoginToken
 from app.utils import (
     generate_password_reset_token,
     generate_reset_password_email,
@@ -31,10 +31,13 @@ def login(session: SessionDep, login_request: LoginBase) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     user = crud.authenticate(
-        session=session, email=login_request.username, password=login_request.password
+        session=session,
+        email=login_request.username,
+        password=login_request.password
     )
     if not user:
         raise HTTPException(
@@ -54,10 +57,14 @@ def login_social(session: SessionDep, login_request: SocialLoginBase) -> Token:
     """
     Handle social login and return an access token.
     """
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
 
     # Use create_or_update_user to either create or authenticate the user
-    user, is_new_user = crud.create_or_update_user(session=session, user_in=login_request)
+    user, is_new_user = crud.create_or_update_user(
+        session=session, user_in=login_request
+    )
     if not user:
         raise HTTPException(
             status_code=400, detail="User not found, Please contact support")
@@ -81,18 +88,24 @@ def login_social(session: SessionDep, login_request: SocialLoginBase) -> Token:
 
 @router.post("/login/swagger", include_in_schema=False)
 def swagger_login(
-    session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+    session: SessionDep,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
 
     user = crud.authenticate(
-        session=session, email=form_data.username, password=form_data.password
+        session=session,
+        email=form_data.username,
+        password=form_data.password
     )
     if not user:
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        raise HTTPException(
+            status_code=400, detail="Incorrect email or password")
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
 
@@ -124,20 +137,18 @@ def recover_password(email: str, session: SessionDep) -> ResetPasswordResponse:
             detail="The user with this email does not exist in the system.",
         )
     password_reset_token = generate_password_reset_token(email=email)
-    password_reset_link = f"{settings.FRONTEND_HOST}/reset-password?email={email}&token={password_reset_token}"
+    password_reset_link = \
+        f"{settings.FRONTEND_HOST}/reset-password?email={email}&token={password_reset_token}"
 
-    # email_data = generate_reset_password_email(
-    #     email_to=user.email, email=email, token=password_reset_token
-    # )
-    # send_email(
-    #     email_to=user.email,
-    #     subject=email_data.subject,
-    #     html_content=email_data.html_content,
-    # )
-    # return Message(message=f"Password recovery email sent.")
-    return ResetPasswordResponse(
-        link=password_reset_link
+    email_data = generate_reset_password_email(
+        email_to=user.email, email=email, token=password_reset_token
     )
+    send_email(
+        email_to=user.email,
+        subject=email_data.subject,
+        html_content=email_data.html_content,
+    )
+    return Message(message=f"Password recovery email sent.")
 
 
 @router.post("/reset-password/")

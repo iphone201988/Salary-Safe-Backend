@@ -2,6 +2,7 @@ from enum import Enum
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from app.models import *
+from app.api.schemas.users import RoleEnum
 
 
 class LoginBase(SQLModel):
@@ -19,3 +20,4 @@ class SocialLoginBase(SQLModel):
     full_name: Optional[str]
     provider: SocialProviderEnum
     provider_id: str
+    role: RoleEnum
