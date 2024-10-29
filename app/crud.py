@@ -50,10 +50,10 @@ def get_request_demo_user(session: Session, email: str) -> RequestDemo | None:
 
 def create_candidate(*, session: Session, candidate_in: CandidateCreate) -> Candidate:
     db_candidate = Candidate.model_validate(candidate_in)
-    if candidate_in.password:
+    if candidate_in.get("password", ""):
         db_candidate = Candidate.model_validate(
             candidate_in, update={
-                "hashed_password": get_password_hash(candidate_in.password)}
+                "hashed_password": get_password_hash(candidate_in["password"])}
         )
     session.add(db_candidate)
     session.commit()
