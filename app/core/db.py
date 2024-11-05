@@ -2,33 +2,30 @@ from sqlmodel import Session, create_engine, select
 
 from app import crud
 from app.core.config import settings
-from app.models import User
-from app.api.schemas.users import UserCreate
+from app.models import Client
+from app.api.schemas.clients import ClientCreate
 
 engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
 
-
-# make sure all SQLModel models are imported (app.models) before initializing DB
-# otherwise, SQLModel might fail to initialize relationships properly
-# for more details: https://github.com/fastapi/full-stack-fastapi-template/issues/28
-
-
+# Initialize the database with a superuser Client account
 def init_db(session: Session) -> None:
     # Tables should be created with Alembic migrations
-    # But if you don't want to use migrations, create
-    # the tables un-commenting the next lines
+    # If migrations are not used, you can uncomment the following lines
+    # to create tables manually:
     # from sqlmodel import SQLModel
-
-    # This works because the models are already imported and registered from app.models
     # SQLModel.metadata.create_all(engine)
 
-    user = session.exec(
-        select(User).where(User.email == settings.FIRST_SUPERUSER)
+    # Check if the first superuser Client already exists
+    superuser_client = session.exec(
+        select(Client).where(Client.email == settings.FIRST_SUPERUSER)
     ).first()
-    if not user:
-        user_in = UserCreate(
+    if not superuser_client:
+        # Create a new superuser Client
+        client_in = ClientCreate(
             email=settings.FIRST_SUPERUSER,
             password=settings.FIRST_SUPERUSER_PASSWORD,
             is_superuser=True,
+            full_name="Superuser",
+            company_name="SalarySafe"
         )
-        user = crud.create_user(session=session, user_create=user_in)
+        superuser_client = crud.create_client(session=session, client_create=client_in)
