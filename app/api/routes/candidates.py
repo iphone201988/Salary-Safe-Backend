@@ -2,10 +2,11 @@ import uuid
 from typing import Any
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlmodel import func, select
 
 from app import crud
+from app.utils import save_file
 from app.core import security
 from app.core.config import settings
 from app.api.deps import (
@@ -23,15 +24,30 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=CandidatePublic)
-def register_candidate(candidate_in: CandidateCreate, session: SessionDep) -> Any:
+async def register_candidate(
+    candidate_in: CandidateCreate,
+    session: SessionDep,
+    resume_upload: Optional[UploadFile] = None,
+    cover_letter_upload: Optional[UploadFile] = None
+) -> Any:
     """
     Register a new candidate.
     """
-    existing_user = crud.get_client_by_email(session=session, email=candidate_in.email) or \
+    # Check if the email is already registered
+    existing_user = (
+        crud.get_client_by_email(session=session, email=candidate_in.email) or
         crud.get_candidate_by_email(session=session, email=candidate_in.email)
+    )
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    # Save resume and cover letter if uploaded
+    if resume_upload:
+        candidate_in.resume_upload = await save_file(resume_upload, "resumes")
+    if cover_letter_upload:
+        candidate_in.cover_letter_upload = await save_file(cover_letter_upload, "cover_letters")
+
+    # Register the candidate
     candidate = crud.create_candidate(session=session, candidate_in=candidate_in)
     return candidate
 

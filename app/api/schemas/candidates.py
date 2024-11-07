@@ -11,7 +11,7 @@ class CandidateBase(SQLModel):
     location: Optional[str] = Field(default=None, max_length=255)
     current_job_title: Optional[str] = Field(default=None, max_length=255)
     linkedin_profile_url: Optional[str] = Field(default=None, max_length=255)
-    job_titles_of_interest: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    job_titles_of_interest: Optional[str] = Field(default=None)
     total_years_of_experience: Optional[int] = Field(default=None)
     education_level: Optional[str] = Field(default=None)
     key_skills: List[str] = Field(default_factory=list, sa_column=Column(JSON))

@@ -1,4 +1,7 @@
 import logging
+import os
+from fastapi import UploadFile
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -122,3 +125,19 @@ def verify_password_reset_token(token: str) -> str | None:
         return str(decoded_token["sub"])
     except InvalidTokenError:
         return None
+
+
+async def save_file(file: UploadFile, folder: str) -> str:
+    # Define the file path
+    file_extension = file.filename.split('.')[-1]
+    file_id = f"{uuid.uuid4()}.{file_extension}"
+    file_path = os.path.join("uploads", folder, file_id)
+
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    # Save file
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+
+    return file_path

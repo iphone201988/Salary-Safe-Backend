@@ -16,18 +16,16 @@ class ClientBase(SQLModel):
     preferred_job_locations: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     roles_of_interest: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     job_types: List[str] = Field(default_factory=list, sa_column=Column(JSON))
-    dashboard_metrics: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    dashboard_metrics: Optional[str] = Field(default=None)
     role_specific_customization: Optional[bool] = Field(default=False)
-    enable_competitive_salary_benchmarking: bool = False
-    receive_salary_adjustment_suggestions: bool = False
-    candidate_viewing_preferences: List[str] = Field(default_factory=list, sa_column=Column(JSON))
-    enable_offer_optimization: bool = False
-    enable_budget_analysis: bool = False
+    salary_benchmarking_preference: Optional[str] = Field(default=None)
+    candidate_viewing_preferences: Optional[str] = Field(default=None)
+    offer_optimization: Optional[str] = Field(default=None)
     enable_real_time_market_alerts: bool = False
     enable_custom_reporting: bool = False
     preferred_report_frequency: Optional[str] = Field(default=None)
-    enable_automated_updates: bool = False
-    enable_candidate_feedback_analysis: bool = False
+    automated_updates: Optional[str] = Field(default=None)
+    candidate_feedback_analysis: Optional[str] = Field(default=None)
     invite_team_member: List[dict] = Field(default_factory=list, sa_column=Column(JSON))
     referral_source: Optional[str] = Field(default=None)
     referral_code: Optional[str] = Field(default=None)
