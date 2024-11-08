@@ -2,7 +2,10 @@ import uuid
 from typing import Any
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import (
+    APIRouter, Depends, HTTPException,
+    File, UploadFile, Form
+)
 from sqlmodel import func, select
 
 from app import crud
@@ -25,30 +28,95 @@ router = APIRouter()
 
 @router.post("/register", response_model=CandidatePublic)
 async def register_candidate(
-    candidate_in: CandidateCreate,
     session: SessionDep,
-    resume_upload: Optional[UploadFile] = None,
-    cover_letter_upload: Optional[UploadFile] = None
+    full_name: str = Form(...),
+    email: EmailStr = Form(...),
+    password: Optional[str] = Form(None),
+    phone_number: Optional[str] = Form(None),
+    location: Optional[str] = Form(None),
+    current_job_title: Optional[str] = Form(None),
+    linkedin_profile_url: Optional[str] = Form(None),
+    job_titles_of_interest: Optional[str] = Form(None),
+    total_years_of_experience: Optional[int] = Form(None),
+    education_level: Optional[str] = Form(None),
+    key_skills: Optional[List[str]] = Form(None),
+    general_salary_range: Optional[str] = Form(None),
+    preferred_salary_type: Optional[str] = Form(None),
+    open_to_performance_based_compensation: bool = Form(False),
+    willing_to_negociate: bool = Form(False),
+    minimum_acceptable_salary: Optional[int] = Form(None),
+    preferred_benefits: Optional[List[str]] = Form(None),
+    view_salary_expectations: Optional[str] = Form(None),
+    hide_profile_from_current_employer: bool = Form(False),
+    industries_of_interest: Optional[List[str]] = Form(None),
+    job_type_preferences: Optional[List[str]] = Form(None),
+    actively_looking_for_new_job: bool = Form(False),
+    career_goals: Optional[str] = Form(None),
+    professional_development_areas: Optional[List[str]] = Form(None),
+    role_specific_salary_adjustments: Optional[str] = Form(None),
+    interested_in_salary_benchmarks: bool = Form(False),
+    invite_employer: Optional[List[str]] = Form(None),
+    job_alerts_frequency: Optional[str] = Form(None),
+    referral_source: Optional[str] = Form(None),
+    referral_code: Optional[str] = Form(None),
+    terms_accepted: bool = Form(True),
+    resume_upload: Optional[UploadFile] = Form(None),
+    cover_letter_upload: Optional[UploadFile] = Form(None),
 ) -> Any:
     """
     Register a new candidate.
     """
     # Check if the email is already registered
     existing_user = (
-        crud.get_client_by_email(session=session, email=candidate_in.email) or
-        crud.get_candidate_by_email(session=session, email=candidate_in.email)
+        crud.get_client_by_email(session=session, email=email) or
+        crud.get_candidate_by_email(session=session, email=email)
     )
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Save resume and cover letter if uploaded
+    resume_url, cover_letter_url = None, None
     if resume_upload:
-        candidate_in.resume_upload = await save_file(resume_upload, "resumes")
+        resume_url = await save_file(resume_upload, "resumes")
     if cover_letter_upload:
-        candidate_in.cover_letter_upload = await save_file(cover_letter_upload, "cover_letters")
+        cover_letter_url = await save_file(cover_letter_upload, "cover_letters")
 
-    # Register the candidate
-    candidate = crud.create_candidate(session=session, candidate_in=candidate_in)
+    # Create candidate input data dictionary
+    candidate_data = {
+        "full_name": full_name,
+        "email": email,
+        "password": password,
+        "phone_number": phone_number,
+        "location": location,
+        "current_job_title": current_job_title,
+        "linkedin_profile_url": linkedin_profile_url,
+        "job_titles_of_interest": job_titles_of_interest,
+        "total_years_of_experience": total_years_of_experience,
+        "education_level": education_level,
+        "key_skills": key_skills,
+        "general_salary_range": general_salary_range,
+        "preferred_salary_type": preferred_salary_type,
+        "open_to_performance_based_compensation": open_to_performance_based_compensation,
+        "willing_to_negociate": willing_to_negociate,
+        "minimum_acceptable_salary": minimum_acceptable_salary,
+        "preferred_benefits": preferred_benefits,
+        "view_salary_expectations": view_salary_expectations,
+        "hide_profile_from_current_employer": hide_profile_from_current_employer,
+        "industries_of_interest": industries_of_interest,
+        "job_type_preferences": job_type_preferences,
+        "actively_looking_for_new_job": actively_looking_for_new_job,
+        "career_goals": career_goals,
+        "professional_development_areas": professional_development_areas,
+        "role_specific_salary_adjustments": role_specific_salary_adjustments,
+        "interested_in_salary_benchmarks": interested_in_salary_benchmarks,
+        "resume_upload": resume_url,
+        "cover_letter_upload": cover_letter_url,
+        "invite_employer": invite_employer,
+        "job_alerts_frequency": job_alerts_frequency,
+        "referral_source": referral_source,
+        "referral_code": referral_code,
+        "terms_accepted": terms_accepted,
+    }
+    candidate = crud.create_candidate(session=session, candidate_in=candidate_data)
     return candidate
 
 

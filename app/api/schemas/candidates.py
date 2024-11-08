@@ -32,11 +32,7 @@ class CandidateBase(SQLModel):
     interested_in_salary_benchmarks: bool = False
     resume_upload: Optional[str] = Field(default=None)
     cover_letter_upload: Optional[str] = Field(default=None)
-    invite_employer: bool = False
-    employer_name: Optional[str] = Field(default=None, max_length=255)
-    contact_person_name: Optional[str] = Field(default=None, max_length=255)
-    contact_email: Optional[EmailStr] = Field(default=None, max_length=255)
-    message_to_employer: Optional[str] = Field(default=None, max_length=255)
+    invite_employer: List[dict] = Field(default_factory=list, sa_column=Column(JSON))
     job_alerts_frequency: Optional[str] = Field(default=None)
     referral_source: Optional[str] = Field(default=None)
     referral_code: Optional[str] = Field(default=None)
