@@ -5,13 +5,13 @@ from typing import Optional, List
 
 
 class ClientBase(SQLModel):
-    email: EmailStr = Field(max_length=255)
+    email: EmailStr = Field(max_length=255, unique=True)
     company_name: Optional[str] = Field(max_length=255)
     industry: Optional[str] = Field(default=None)
     company_size: Optional[str] = Field(default=None)
     headquarters_location: Optional[str] = Field(default=None, max_length=255)
     primary_contact_person: Optional[str] = Field(default=None, max_length=255)
-    contact_phone_number: Optional[str] = Field(default=None, max_length=15)
+    contact_phone_number: Optional[str] = Field(default=None, max_length=15, unique=True)
     primary_hiring_goals: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     preferred_job_locations: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     roles_of_interest: List[str] = Field(default_factory=list, sa_column=Column(JSON))

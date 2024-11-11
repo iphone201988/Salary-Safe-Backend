@@ -48,14 +48,14 @@ async def register_candidate(
     preferred_benefits: Optional[List[str]] = Form(None),
     view_salary_expectations: Optional[str] = Form(None),
     hide_profile_from_current_employer: bool = Form(False),
-    industries_of_interest: Optional[List[str]] = Form(None),
+    industries_of_interest: Optional[List[str]] = Form([]),
     job_type_preferences: Optional[List[str]] = Form(None),
     actively_looking_for_new_job: bool = Form(False),
     career_goals: Optional[str] = Form(None),
-    professional_development_areas: Optional[List[str]] = Form(None),
+    professional_development_areas: Optional[List[str]] = Form([]),
     role_specific_salary_adjustments: Optional[str] = Form(None),
     interested_in_salary_benchmarks: bool = Form(False),
-    invite_employer: Optional[List[str]] = Form(None),
+    invite_employer: Optional[List[str]] = Form([]),
     job_alerts_frequency: Optional[str] = Form(None),
     referral_source: Optional[str] = Form(None),
     referral_code: Optional[str] = Form(None),
@@ -67,12 +67,21 @@ async def register_candidate(
     Register a new candidate.
     """
     # Check if the email is already registered
-    existing_user = (
+    existing_user_email = (
         crud.get_client_by_email(session=session, email=email) or
         crud.get_candidate_by_email(session=session, email=email)
     )
-    if existing_user:
+    if existing_user_email:
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Check if the phone number is already registered
+    if phone_number:
+        existing_phone_number = (
+            crud.get_client_by_phone_number(session=session, phone_number=phone_number) or
+            crud.get_candidate_by_phone_number(session=session, phone_number=phone_number)
+        )
+        if existing_phone_number:
+            raise HTTPException(status_code=400, detail="Phone number already registered")
 
     resume_url, cover_letter_url = None, None
     if resume_upload:

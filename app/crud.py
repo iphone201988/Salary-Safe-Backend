@@ -123,6 +123,13 @@ def get_candidate_by_email(*, session: Session, email: str) -> Candidate | None:
     session_user = session.exec(statement).first()
     return session_user
 
+
+def get_candidate_by_phone_number(*, session: Session, phone_number: str) -> Candidate | None:
+    statement = select(Candidate).where(Candidate.phone_number == phone_number)
+    session_user = session.exec(statement).first()
+    return session_user
+
+
 ##################################################
 #                                                #
 #                    Client                      # 
@@ -159,6 +166,11 @@ def update_client(*, session: Session, db_client: Client, client_in: ClientUpdat
 
 def get_client_by_email(*, session: Session, email: str) -> Client | None:
     statement = select(Client).where(Client.email == email)
+    session_user = session.exec(statement).first()
+    return session_user
+
+def get_client_by_phone_number(*, session: Session, phone_number: str) -> Client | None:
+    statement = select(Client).where(Client.contact_phone_number == phone_number)
     session_user = session.exec(statement).first()
     return session_user
 

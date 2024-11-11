@@ -25,10 +25,24 @@ def register_client(client_in: ClientCreate, session: SessionDep) -> Any:
     """
     Register a new client.
     """
-    existing_user = crud.get_client_by_email(session=session, email=client_in.email) or \
+
+    # Check if the email is already registered
+    existing_user_email = (
+        crud.get_client_by_email(session=session, email=client_in.email) or
         crud.get_candidate_by_email(session=session, email=client_in.email)
-    if existing_user:
+    )
+    if existing_user_email:
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Check if the phone number is already registered
+    if client_in.contact_phone_number:
+        existing_phone_number = (
+            crud.get_client_by_phone_number(session=session, phone_number=client_in.contact_phone_number) or
+            crud.get_candidate_by_phone_number(session=session, phone_number=client_in.contact_phone_number)
+        )
+        if existing_phone_number:
+            raise HTTPException(status_code=400, detail="Phone number already registered")
+
 
     client = crud.create_client(session=session, client_in=client_in)
     return client
