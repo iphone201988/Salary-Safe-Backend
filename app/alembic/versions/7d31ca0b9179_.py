@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: a772a7437b71
+Revision ID: 7d31ca0b9179
 Revises: 
-Create Date: 2024-11-08 17:51:07.849820
+Create Date: 2024-11-12 11:19:59.542336
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'a772a7437b71'
+revision: str = '7d31ca0b9179'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -50,6 +50,7 @@ def upgrade() -> None:
     sa.Column('resume_upload', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('cover_letter_upload', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('invite_employer', sa.JSON(), nullable=True),
+    sa.Column('notification_preferences', sa.JSON(), nullable=True),
     sa.Column('job_alerts_frequency', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('referral_source', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('referral_code', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
@@ -97,7 +98,9 @@ def upgrade() -> None:
     sa.Column('mfa_enabled', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('contact_phone_number'),
+    sa.UniqueConstraint('email')
     )
     op.create_table('request_demo',
     sa.Column('full_name', sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),

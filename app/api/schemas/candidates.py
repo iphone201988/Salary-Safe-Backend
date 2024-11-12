@@ -33,6 +33,7 @@ class CandidateBase(SQLModel):
     resume_upload: Optional[str] = Field(default=None)
     cover_letter_upload: Optional[str] = Field(default=None)
     invite_employer: List[dict] = Field(default_factory=list, sa_column=Column(JSON))
+    notification_preferences: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     job_alerts_frequency: Optional[str] = Field(default=None)
     referral_source: Optional[str] = Field(default=None)
     referral_code: Optional[str] = Field(default=None)
