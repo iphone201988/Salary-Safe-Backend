@@ -3,6 +3,22 @@ from pydantic import BaseModel, EmailStr, condecimal
 from sqlmodel import SQLModel, Field
 from typing import Optional, List
 from enum import Enum
+import datetime
+
+class JobTypeEnum(str, Enum):
+    fulltime = "fulltime"
+    parttime = "parttime"
+    internship = "internship"
+    contract = "contract"
+    temproray = "temporary"
+    volunteer = "volunteer"
+    other = "other"
+
+
+class JobWorkplaceTypeEnum(str, Enum):
+    onsite = "onsite"
+    remote = "remote"
+    hybrid = "hybrid"
 
 
 class JobStatusEnum(str, Enum):
@@ -18,17 +34,33 @@ class JobBase(SQLModel):
     salary_max: Optional[condecimal(ge=0)] = Field(default=None)
     requirements: Optional[str] = Field(default=None)
     status: JobStatusEnum = Field(default="active")
+    job_type: JobTypeEnum = Field(default="fulltime")
+    workplace_type: JobWorkplaceTypeEnum = Field(default="onsite")
 
 
 class JobCreate(JobBase):
-    client_id: uuid.UUID
+    client_id: uuid.UUID = Field(default=None)
+    pass
 
 
 class JobUpdate(JobBase):
     pass
 
 
+class JobSearch(BaseModel):
+    title: Optional[str] = None
+    location: Optional[str] = None
+    salary_min: Optional[float] = None
+    salary_max: Optional[float] = None
+    status: Optional[JobStatusEnum] = None
+    job_type: Optional[JobTypeEnum] = None
+    workplace_type: Optional[JobWorkplaceTypeEnum] = None
+    skip: int = 0
+    limit: int = 100
+
+
 class JobPublic(JobBase):
+    created_at: datetime.datetime
     id: uuid.UUID
 
 
@@ -44,13 +76,13 @@ class ApplicationStatusEnum(str, Enum):
 
 
 class JobApplicationBase(SQLModel):
-    status: ApplicationStatusEnum | None = Field(default=None)
-    salary_expectation: Optional[condecimal(ge=0)] = Field(default=None)
+    status: ApplicationStatusEnum = Field(default="pending")
+    salary_expectation: condecimal(ge=0) = Field(default=None)
 
 
 class JobApplicationCreate(JobApplicationBase):
     job_id: uuid.UUID
-    candidate_id: uuid.UUID
+    candidate_id: uuid.UUID = Field(default=None)
 
 
 class JobApplicationUpdate(JobApplicationBase):
@@ -58,6 +90,7 @@ class JobApplicationUpdate(JobApplicationBase):
 
 
 class JobApplicationPublic(JobApplicationBase):
+    created_at: datetime.datetime
     id: uuid.UUID
     job_id: uuid.UUID
     candidate_id: uuid.UUID

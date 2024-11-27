@@ -1,7 +1,7 @@
 import uuid
-from typing import Any
+from typing import Any, Optional
 
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
 from app.core.security import get_password_hash, verify_password
 from app.models import (
@@ -11,10 +11,7 @@ from app.models import (
 from app.api.schemas.utils import RequestDemoBase, SocialLoginBase
 from app.api.schemas.candidates import CandidateBase, CandidateCreate, CandidateUpdate
 from app.api.schemas.clients import ClientBase, ClientCreate, ClientUpdate
-from app.api.schemas.jobs import (
-    JobBase, JobUpdate, JobCreate, JobApplicationBase,
-    JobApplicationCreate, JobApplicationUpdate
-)
+from app.api.schemas.jobs import *
 
 
 def create_request_demo(session: Session, request_create: RequestDemoBase) -> RequestDemo:
@@ -190,16 +187,54 @@ def create_job(*, session: Session, job_in: JobCreate) -> Job:
     return db_job
 
 
-def update_job(*, session: Session, db_job: Job, job_in: JobUpdate) -> Job:
+def get_jobs_by_client(
+    session: Session, client_id: uuid.UUID, skip: int, limit: int
+) -> tuple[list[Job], int]:
+    statement = select(Job).where(Job.client_id == client_id)
+    total_count = session.exec(
+        select(func.count()).select_from(statement.subquery())).one()
+    jobs = session.exec(statement.offset(skip).limit(limit)).all()
+    return jobs, total_count
+
+
+def update_job(*, session: Session, db_client: Job, job_in: JobUpdate) -> Job:
     job_data = job_in.model_dump(exclude_unset=True)
-    db_job.sqlmodel_update(job_data)
-    session.add(db_job)
+    db_client.sqlmodel_update(job_data)
+    session.add(db_client)
     session.commit()
-    session.refresh(db_job)
-    return db_job
+    session.refresh(db_client)
+    return db_client
 
 
-def create_job_application(*, session: Session, application_in: JobApplicationCreate) -> JobApplication:
+def search_jobs(session: Session, filters: JobSearch) -> tuple[list[Job], int]:
+    statement = select(Job)
+
+    if filters.title:
+        statement = statement.where(Job.title.ilike(f"%{filters.title}%"))
+    if filters.location:
+        statement = statement.where(Job.location.ilike(f"%{filters.location}%"))
+    if filters.salary_min is not None:
+        statement = statement.where(Job.salary_min >= filters.salary_min)
+    if filters.salary_max is not None:
+        statement = statement.where(Job.salary_max <= filters.salary_max)
+    if filters.status:
+        statement = statement.where(Job.status == filters.status)
+    if filters.job_type:
+        statement = statement.where(Job.job_type == filters.job_type)
+    if filters.workplace_type:
+        statement = statement.where(Job.workplace_type == filters.workplace_type)
+
+    total_count = session.exec(
+        select(func.count()).select_from(statement.subquery())
+    ).one()
+
+    jobs = session.exec(statement.offset(filters.skip).limit(filters.limit)).all()
+    return jobs, total_count
+
+
+def create_job_application(
+    *, session: Session, application_in: JobApplicationCreate
+) -> JobApplication:
     db_application = JobApplication.model_validate(application_in)
     session.add(db_application)
     session.commit()
@@ -207,10 +242,27 @@ def create_job_application(*, session: Session, application_in: JobApplicationCr
     return db_application
 
 
-def update_job_application(*, session: Session, db_application: JobApplication, application_in: JobApplicationUpdate) -> JobApplication:
+def get_application_by_id(
+    session: Session, application_id: uuid.UUID
+) -> JobApplication | None:
+    return session.get(JobApplication, application_id)
+
+
+def get_applications_by_candidate(
+    session: Session, candidate_id: uuid.UUID, skip: int, limit: int
+) -> tuple[list[JobApplication], int]:
+    statement = select(JobApplication).where(JobApplication.candidate_id == candidate_id)
+    total_count = session.exec(select(func.count()).select_from(statement.subquery())).one()
+    applications = session.exec(statement.offset(skip).limit(limit)).all()
+    return applications, total_count
+
+
+def update_job_application(
+    *, session: Session, db_client: JobApplication, application_in: JobApplicationUpdate
+) -> JobApplication:
     application_data = application_in.model_dump(exclude_unset=True)
-    db_application.sqlmodel_update(application_data)
-    session.add(db_application)
+    db_client.sqlmodel_update(application_data)
+    session.add(db_client)
     session.commit()
-    session.refresh(db_application)
-    return db_application
+    session.refresh(db_client)
+    return db_client

@@ -8,10 +8,25 @@ To get started with Salary Safe locally, follow these steps.
 - Python 3.8+
 - PostgreSQL
 
+## Tech Stack
+
+### Backend
+- **Python**: Core programming language.
+- **FastAPI**: Framework for building REST APIs.
+- **SQLAlchemy**: ORM for database interaction.
+- **Alembic**: Tool for handling database migrations.
+- **PostgreSQL**: Database for storing application data.
+
+### Server
+- **Nginx**: Reverse proxy server for routing and load balancing.
+- **Gunicorn**: WSGI HTTP Server for running Python applications.
+- **Uvicorn**: ASGI server for running FastAPI applications.
+- **Certbot**: Tool for managing SSL certificates (HTTPS).
+
 ## Setup Instructions
 1. Clone the repository
     ```bash
-    git clone https://github.com/Techwinlabs-Python/SalarySafe.git
+    git clone https://github.com/{username}/SalarySafe.git
     cd salary-safe
     ```
 
@@ -41,8 +56,14 @@ To get started with Salary Safe locally, follow these steps.
     ```
 
 6. Run the application
+
+    Development
     ```bash
-    # Check fastapi docs for other mode (prod)
     fastapi dev --reload app/main.py --host 0.0.0.0 --port 5000 
     ```
 
+    Production
+    ```bash
+    gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app  
+
+    ```
