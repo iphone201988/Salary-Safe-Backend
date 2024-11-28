@@ -1,5 +1,6 @@
 import uuid
 from typing import Any, Optional
+from decimal import Decimal
 
 from sqlmodel import Session, select, func
 
@@ -187,9 +188,33 @@ def create_job(*, session: Session, job_in: JobCreate) -> Job:
     return db_job
 
 
+def get_jobs(
+    session: Session, skip: int = 0, limit: int = 100
+) -> tuple[List[Job], int]:
+
+    statement = (
+        select(Job, Client.company_name)
+        .join(Client, Job.client_id == Client.id, isouter=True)
+        .offset(skip)
+        .limit(limit)
+    )
+    jobs = session.exec(statement).all()
+    jobs = [JobPublic(**job.dict(), company_name=company_name) for job, company_name in jobs]
+
+    count = session.exec(select(func.count()).select_from(Job)).one()
+    return jobs, count
+
+
+def get_job_by_id(session: Session, job_id=uuid.UUID):
+    job = session.get(Job, job_id)
+    count = session.exec(select(func.count()).select_from(Job)).one()
+    return job
+
+
 def get_jobs_by_client(
-    session: Session, client_id: uuid.UUID, skip: int, limit: int
+    *, session: Session, client_id: uuid.UUID, skip: int, limit: int
 ) -> tuple[list[Job], int]:
+
     statement = select(Job).where(Job.client_id == client_id)
     total_count = session.exec(
         select(func.count()).select_from(statement.subquery())).one()
@@ -206,7 +231,7 @@ def update_job(*, session: Session, db_client: Job, job_in: JobUpdate) -> Job:
     return db_client
 
 
-def search_jobs(session: Session, filters: JobSearch) -> tuple[list[Job], int]:
+def search_jobs(*, session: Session, filters: JobSearch) -> tuple[list[Job], int]:
     statement = select(Job)
 
     if filters.title:
@@ -232,6 +257,33 @@ def search_jobs(session: Session, filters: JobSearch) -> tuple[list[Job], int]:
     return jobs, total_count
 
 
+def get_matching_jobs_for_candidate(
+    *, session: Session, candidate: Candidate,
+    skip: int, limit: int
+):
+    statement = select(Job).where(Job.status == "active")
+
+    if candidate.job_titles_of_interest:
+        statement = statement.where(Job.title.ilike(f"%{candidate.job_titles_of_interest.strip().lower()}%"))
+
+    if candidate.location:
+        statement = statement.where(Job.location.ilike(f"%{candidate.location.strip().lower()}%"))
+
+    if candidate.job_type_preferences:
+        statement = statement.where(Job.job_type.in_(candidate.job_type_preferences))
+
+    if candidate.minimum_acceptable_salary:
+        statement = statement.where(Job.salary_min >= Decimal(candidate.minimum_acceptable_salary))
+
+    if candidate.general_salary_range:
+        statement = statement.where(Job.salary_max <= Decimal(candidate.general_salary_range))
+
+    total_count = session.exec(select(func.count()).select_from(statement.subquery())).one()
+    jobs = session.exec(statement.offset(skip).limit(limit)).all()
+
+    return jobs, total_count
+
+
 def create_job_application(
     *, session: Session, application_in: JobApplicationCreate
 ) -> JobApplication:
@@ -242,13 +294,38 @@ def create_job_application(
     return db_application
 
 
-def get_application_by_id(
+def get_job_applications(
+    session: Session, skip: int, limit: int
+) -> tuple[list[JobApplication], int]:
+
+    statement = select(JobApplication).offset(skip).limit(limit)
+    applications = session.exec(statement).all()
+    total_count = session.exec(
+        select(func.count()).select_from(JobApplication)).one()
+
+    return applications, total_count
+
+
+def get_job_applications_by_job_id(
+    session: Session, job_id: uuid.UUID, skip: int, limit: int
+) -> tuple[list[JobApplication], int]:
+    statement = select(JobApplication).where(
+        JobApplication.job_id == job_id).offset(skip).limit(limit)
+
+    applications = session.exec(statement).all()
+    total_count = session.exec(select(func.count()).select_from(
+        JobApplication).where(JobApplication.job_id == job_id)).one()
+
+    return applications, total_count
+
+
+def get_job_application_by_id(
     session: Session, application_id: uuid.UUID
 ) -> JobApplication | None:
     return session.get(JobApplication, application_id)
 
 
-def get_applications_by_candidate(
+def get_job_applications_by_candidate_id(
     session: Session, candidate_id: uuid.UUID, skip: int, limit: int
 ) -> tuple[list[JobApplication], int]:
     statement = select(JobApplication).where(JobApplication.candidate_id == candidate_id)

@@ -10,7 +10,7 @@ from app.api.deps import (
     SessionDep,
     get_current_active_superuser,
 )
-from app.models import Job, JobApplication
+from app.models import Client, Job, JobApplication
 from app.api.schemas.jobs import *
 from app.api.schemas.utils import Message
 
@@ -57,14 +57,11 @@ def get_current_client_jobs(
 def read_jobs(
     session: SessionDep, current_user: CurrentUser,
     skip: int = 0, limit: int = 100
-) -> Any:
+) -> JobsPublic:
     """
     Retrieve all jobs.
     """
-    statement = select(Job).offset(skip).limit(limit)
-    jobs = session.exec(statement).all()
-
-    count = session.exec(select(func.count()).select_from(Job)).one()
+    jobs, count = crud.get_jobs(session=session, skip=skip, limit=limit)
     return JobsPublic(data=jobs, count=count)
 
 
@@ -75,10 +72,10 @@ def read_job_by_id(
     """
     Get a specific job by id.
     """
-    job = session.get(Job, job_id)
+    job = crud.get_job_by_id(session=session, job_id=job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    return JobPublic(**job.dict(), company_name=job.client.company_name)
 
 
 @router.patch("/{job_id}", response_model=JobPublic)
@@ -94,12 +91,17 @@ def update_job(
         raise HTTPException(
             status_code=403, detail="Only clients can update jobs")
 
-    db_job = session.get(Job, job_id)
-    if not db_job:
+    job = crud.get_job_by_id(session=session, job_id=job_id)
+    if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    db_job = crud.update_job(session=session, db_job=db_job, job_in=job_in)
-    return db_job
+    if job.client_id != client.id:
+        raise HTTPException(
+        status_code=403, detail="You are not authorized to update this job"
+    )
+
+    job = crud.update_job(session=session, db_client=job, job_in=job_in)
+    return job
 
 
 @router.delete("/{job_id}", response_model=Message)
@@ -114,9 +116,14 @@ def delete_job(
         raise HTTPException(
             status_code=403, detail="Only clients can delete jobs")
 
-    job = session.get(Job, job_id)
+    job = crud.get_job_by_id(session=session, job_id=job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.client_id != client.id:
+        raise HTTPException(
+            status_code=403, detail="You are not authorized to delete this job"
+        )
 
     session.delete(job)
     session.commit()
@@ -134,9 +141,35 @@ def search_jobs(
         session=session,
         filters=filters,
     )
+    jobs = [JobPublic(**job.dict(), company_name=job.client.company_name) for job in jobs]
     return JobsPublic(data=jobs, count=count)
 
 
+@router.get("/me/matches", response_model=JobsPublic)
+def get_matching_jobs(
+    session: SessionDep, current_user: CurrentUser,
+    skip: int = 0, limit: int = 100
+) -> Any:
+    """
+    Get job matches for current/logged in candidate
+    """
+    candidate = crud.get_candidate_by_email(session=session, email=current_user.email)
+    if not candidate:
+        raise HTTPException(
+            status_code=403, detail="Only candidates can view their job matches")
+
+    jobs, count = crud.get_matching_jobs_for_candidate(
+        session=session, candidate=candidate, skip=skip, limit=limit
+    )
+
+    return JobsPublic(data=jobs, count=count)
+
+
+##################################################################
+#                                                                #
+#                       Job Applications                         #
+#                                                                #
+##################################################################
 @router.post("/{job_id}/apply", response_model=JobApplicationPublic)
 def apply_to_job(
     job_id: uuid.UUID, session: SessionDep,
@@ -150,10 +183,30 @@ def apply_to_job(
         raise HTTPException(
             status_code=403, detail="Only candidates can apply to jobs")
 
+    job = crud.get_job_by_id(session=session, job_id=job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
     application_in.candidate_id = candidate.id
+    application_in.job_id = job.id
     application = crud.create_job_application(
-        session=session, application_in=application_in)
+        session=session, application_in=application_in
+    )
     return application
+
+
+@router.get("/applications/all", response_model=JobApplicationsPublic)
+def read_job_applications(
+    session: SessionDep, current_user: CurrentUser,
+    skip: int = 0, limit: int = 100
+) -> Any:
+    """
+    Retrieve all job applications.
+    """
+    applications, count = crud.get_job_applications(
+        session=session, skip=skip, limit=limit
+    )
+    return JobApplicationsPublic(data=applications, count=count)
 
 
 @router.get("/applications/me", response_model=JobApplicationsPublic)
@@ -169,8 +222,9 @@ def get_my_job_applications(
             status_code=403, detail="Only candidates can view their applications"
         )
 
-    applications, count = crud.get_applications_by_candidate(
-        session=session, candidate_id=candidate.id, skip=skip, limit=limit)
+    applications, count = crud.get_job_applications_by_candidate_id(
+        session=session, candidate_id=candidate.id, skip=skip, limit=limit
+    )
     return JobApplicationsPublic(data=applications, count=count)
 
 
@@ -180,26 +234,9 @@ def read_job_applications_for_job(
     skip: int = 0, limit: int = 100
 ) -> Any:
     """
-        Fetch applications for a specific job
+    Fetch applications for a specific job
     """
-    statement = select(JobApplication).where(
-        JobApplication.job_id == job_id).offset(skip).limit(limit)
-    applications = session.exec(statement).all()
-    count = session.exec(select(func.count()).select_from(
-        JobApplication).where(JobApplication.job_id == job_id)).one()
-    return JobApplicationsPublic(data=applications, count=count)
-
-
-@router.get("/applications/all", response_model=JobApplicationsPublic)
-def read_job_applications(
-    session: SessionDep, current_user: CurrentUser,
-    skip: int = 0, limit: int = 100
-) -> Any:
-    """
-    Retrieve all job applications.
-    """
-    statement = select(JobApplication).offset(skip).limit(limit)
-    applications = session.exec(statement).all()
-
-    count = session.exec(select(func.count()).select_from(JobApplication)).one()
+    applications, count = crud.get_job_applications_by_job_id(
+        session=session, job_id=job_id, skip=skip, limit=limit
+    )
     return JobApplicationsPublic(data=applications, count=count)

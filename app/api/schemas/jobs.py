@@ -60,6 +60,7 @@ class JobSearch(BaseModel):
 
 
 class JobPublic(JobBase):
+    company_name: Optional[str] = None
     created_at: datetime.datetime
     id: uuid.UUID
 
@@ -91,9 +92,9 @@ class JobApplicationUpdate(JobApplicationBase):
 
 class JobApplicationPublic(JobApplicationBase):
     created_at: datetime.datetime
-    id: uuid.UUID
     job_id: uuid.UUID
     candidate_id: uuid.UUID
+    id: uuid.UUID
 
 
 class JobApplicationsPublic(SQLModel):
