@@ -70,6 +70,41 @@ class JobsPublic(SQLModel):
     count: int
 
 
+class JobInsightsRequest(BaseModel):
+    title: Optional[str] = None
+    location: Optional[str] = None
+    job_type: Optional[str] = None
+    min_salary: Optional[condecimal(ge=0)] = None
+    max_salary: Optional[condecimal(ge=0)] = None
+    requirements: Optional[str] = None
+    status: Optional[JobStatusEnum] = None
+    job_type: Optional[JobTypeEnum] = None
+    workplace_type: Optional[JobWorkplaceTypeEnum] = None
+
+
+class TopCompany(BaseModel):
+    company_name: str
+    job_count: int
+
+
+class JobTypeDistribution(BaseModel):
+    job_type: str
+    count: int
+
+
+class SalaryRangeDistribution(BaseModel):
+    range: str
+    count: int
+
+
+class MarketInsightsResponse(BaseModel):
+    average_salary: Optional[float]
+    total_jobs: int
+    top_companies: List[TopCompany]
+    job_type_distribution: List[JobTypeDistribution]
+    salary_distribution: List[SalaryRangeDistribution]
+
+
 class ApplicationStatusEnum(str, Enum):
     pending = "pending"
     accepted = "accepted"

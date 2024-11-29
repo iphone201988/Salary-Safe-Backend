@@ -165,6 +165,16 @@ def get_matching_jobs(
     return JobsPublic(data=jobs, count=count)
 
 
+@router.post("/filters/insights", response_model=MarketInsightsResponse)
+def get_market_insights(
+    session: SessionDep, current_user: CurrentUser, filters: JobInsightsRequest
+) -> MarketInsightsResponse:
+    """
+    Get market insights based on job filters.
+    """
+    return crud.get_market_insights(session=session, filters=filters)
+
+
 ##################################################################
 #                                                                #
 #                       Job Applications                         #
