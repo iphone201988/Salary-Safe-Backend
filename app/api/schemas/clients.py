@@ -45,6 +45,15 @@ class ClientUpdate(ClientBase):
     pass
 
 
+class ClientPrivate(SQLModel):
+    id: uuid.UUID
+    email: Optional[EmailStr] = None
+    company_name: Optional[str] = None
+    industry: Optional[str] = None
+    company_size: Optional[str] = None
+    headquarters_location: Optional[str] = None
+
+
 class ClientPublic(ClientBase):
     id: uuid.UUID
 

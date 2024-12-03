@@ -1,9 +1,12 @@
 import uuid
+import datetime
 from pydantic import BaseModel, EmailStr, condecimal
 from sqlmodel import SQLModel, Field
 from typing import Optional, List
 from enum import Enum
-import datetime
+from app.api.schemas.candidates import CandidatePrivate
+from app.api.schemas.clients import ClientPrivate
+
 
 class JobTypeEnum(str, Enum):
     fulltime = "fulltime"
@@ -24,6 +27,12 @@ class JobWorkplaceTypeEnum(str, Enum):
 class JobStatusEnum(str, Enum):
     active = "active"
     closed = "closed"
+
+
+class ApplicationStatusEnum(str, Enum):
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
 
 
 class JobBase(SQLModel):
@@ -60,7 +69,8 @@ class JobSearch(BaseModel):
 
 
 class JobPublic(JobBase):
-    company_name: Optional[str] = None
+    application_status: Optional[ApplicationStatusEnum] = None
+    client_details: Optional[ClientPrivate] = None
     created_at: datetime.datetime
     id: uuid.UUID
 
@@ -105,12 +115,6 @@ class MarketInsightsResponse(BaseModel):
     salary_distribution: List[SalaryRangeDistribution]
 
 
-class ApplicationStatusEnum(str, Enum):
-    pending = "pending"
-    accepted = "accepted"
-    rejected = "rejected"
-
-
 class JobApplicationBase(SQLModel):
     status: ApplicationStatusEnum = Field(default="pending")
     salary_expectation: condecimal(ge=0) = Field(default=None)
@@ -125,7 +129,13 @@ class JobApplicationUpdate(JobApplicationBase):
     pass
 
 
+class JobApplicationStatusUpdate(BaseModel):
+    status: ApplicationStatusEnum
+
+
 class JobApplicationPublic(JobApplicationBase):
+    job_details: Optional[JobPublic] = None
+    candidate_details: Optional[CandidatePrivate] = None
     created_at: datetime.datetime
     job_id: uuid.UUID
     candidate_id: uuid.UUID

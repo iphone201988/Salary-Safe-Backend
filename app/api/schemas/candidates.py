@@ -53,6 +53,20 @@ class CandidateCreate(CandidateBase):
     password: Optional[str] = Field(default=None, min_length=8, max_length=40)
 
 
+class CandidatePrivate(SQLModel):
+    id: uuid.UUID
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    location: Optional[str] = None
+    current_job_title: Optional[str] = None
+    linkedin_profile_url: Optional[str] = None
+    job_titles_of_interest: Optional[str] = None
+    total_years_of_experience: Optional[int] = None
+    education_level: Optional[str] = None
+    key_skills: Optional[List[str]] = None
+
+
 class CandidatePublic(CandidateBase):
     id: uuid.UUID
 

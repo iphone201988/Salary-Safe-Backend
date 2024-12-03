@@ -251,8 +251,6 @@ def get_jobs(
 
 def get_job_by_id(session: Session, job_id=uuid.UUID):
     job = session.get(Job, job_id)
-    count = session.exec(select(func.count()).select_from(Job)).one()
-
     return job
 
 
@@ -316,7 +314,7 @@ def get_matching_jobs_for_candidate(
 
     if candidate.job_titles_of_interest:
         statement = statement.where(
-            ob.title.ilike(f"%{candidate.job_titles_of_interest.strip().lower()}%")
+            Job.title.ilike(f"%{candidate.job_titles_of_interest.strip().lower()}%")
         )
 
     if candidate.location:
@@ -466,13 +464,11 @@ def get_job_applications(
 def get_job_applications_by_job_id(
     session: Session, job_id: uuid.UUID, skip: int, limit: int
 ) -> tuple[list[JobApplication], int]:
-    statement = select(JobApplication).where(
-        JobApplication.job_id == job_id).offset(skip).limit(limit)
+    statement = select(JobApplication).where(JobApplication.job_id == job_id)
+    applications = session.exec(statement.offset(skip).limit(limit)).all()
 
-    applications = session.exec(statement).all()
-
-    total_count = session.exec(select(func.count()).select_from(
-        JobApplication).where(JobApplication.job_id == job_id)).one()
+    total_count = session.exec(
+        select(func.count()).select_from(statement.subquery())).one()
 
     return applications, total_count
 
@@ -509,3 +505,28 @@ def update_job_application(
     session.refresh(db_client)
 
     return db_client
+
+
+def update_job_application_status(
+    session: Session, application: JobApplication,
+    application_status: JobApplicationStatusUpdate
+) -> JobApplication:
+    application.status = application_status
+    session.add(application)
+    session.commit()
+    session.refresh(application)
+    return application
+
+
+def get_job_applications_status(
+    session: Session, candidate_id: uuid.UUID, job_id: uuid.UUID,
+) -> Optional[str]:
+    """
+    Fetch the application status of the current user for a specific job.
+    """
+    statement = select(JobApplication.status).where(
+        JobApplication.job_id == job_id,
+        JobApplication.candidate_id == candidate_id,
+    )
+    status = session.exec(statement).first()
+    return status

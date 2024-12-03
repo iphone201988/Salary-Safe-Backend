@@ -75,7 +75,7 @@ def read_job_by_id(
     job = crud.get_job_by_id(session=session, job_id=job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return JobPublic(**job.dict(), company_name=job.client.company_name)
+    return JobPublic(**job.dict(), client_details=job.client)
 
 
 @router.patch("/{job_id}", response_model=JobPublic)
@@ -141,7 +141,15 @@ def search_jobs(
         session=session,
         filters=filters,
     )
-    jobs = [JobPublic(**job.dict(), company_name=job.client.company_name) for job in jobs]
+    jobs = [
+        JobPublic(
+            **job.dict(),
+            client_details=job.client,
+            application_status=crud.get_job_applications_status(
+                session=session, candidate_id=current_user.id, job_id=job.id
+            )
+        ) for job in jobs
+    ]
     return JobsPublic(data=jobs, count=count)
 
 
@@ -161,7 +169,15 @@ def get_matching_jobs(
     jobs, count = crud.get_matching_jobs_for_candidate(
         session=session, candidate=candidate, skip=skip, limit=limit
     )
-
+    jobs = [
+        JobPublic(
+            **job.dict(),
+            client_details=job.client,
+            application_status=crud.get_job_applications_status(
+                session=session, candidate_id=current_user.id, job_id=job.id
+            )
+        ) for job in jobs
+    ]
     return JobsPublic(data=jobs, count=count)
 
 
@@ -199,6 +215,7 @@ def apply_to_job(
 
     application_in.candidate_id = candidate.id
     application_in.job_id = job.id
+    application_in.status = ApplicationStatusEnum.pending
     application = crud.create_job_application(
         session=session, application_in=application_in
     )
@@ -216,6 +233,17 @@ def read_job_applications(
     applications, count = crud.get_job_applications(
         session=session, skip=skip, limit=limit
     )
+    applications = [
+        JobApplicationPublic(
+            **app.dict(),
+            job_details=JobPublic(
+                **app.job.dict(),
+                client_details=app.job.client
+            )
+        )
+        for app in applications
+    ]
+
     return JobApplicationsPublic(data=applications, count=count)
 
 
@@ -224,7 +252,7 @@ def get_my_job_applications(
     session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100
 ) -> Any:
     """
-    Get all applications submitted by the current/logged in candidate.
+    Get all applications submitted by the current/logged-in candidate.
     """
     candidate = crud.get_candidate_by_email(session=session, email=current_user.email)
     if not candidate:
@@ -235,18 +263,119 @@ def get_my_job_applications(
     applications, count = crud.get_job_applications_by_candidate_id(
         session=session, candidate_id=candidate.id, skip=skip, limit=limit
     )
+
+    applications = [
+        JobApplicationPublic(
+            **app.dict(),
+            candidate_details=app.candidate,
+            job_details=JobPublic(
+                **app.job.dict(),
+                client_details=app.job.client
+            )
+        )
+        for app in applications
+    ]
+
     return JobApplicationsPublic(data=applications, count=count)
 
 
 @router.get("/{job_id}/applications", response_model=JobApplicationsPublic)
-def read_job_applications_for_job(
-    job_id: uuid.UUID, session: SessionDep, current_user: CurrentUser,
+def get_job_applications_by_job_id(
+    session: SessionDep, current_user: CurrentUser, job_id: uuid.UUID,
     skip: int = 0, limit: int = 100
 ) -> Any:
     """
-    Fetch applications for a specific job
+    Get the applications for a specific job. (Only for clients)
     """
+    client = crud.get_client_by_email(session=session, email=current_user.email)
+    if not client:
+        raise HTTPException(
+            status_code=403, detail="Only for clients"
+        )
+
+    job = crud.get_job_by_id(session=session, job_id=job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.client_id != client.id:
+        raise HTTPException(
+            status_code=403, detail="You are not authorized to view this job applications"
+        )
+
     applications, count = crud.get_job_applications_by_job_id(
         session=session, job_id=job_id, skip=skip, limit=limit
     )
+
+    applications = [
+        JobApplicationPublic(
+            **app.dict(),
+            candidate_details=app.candidate,
+            job_details=JobPublic(
+                **app.job.dict(),
+                client_details=app.job.client,
+            )
+        )
+        for app in applications
+    ]
+
     return JobApplicationsPublic(data=applications, count=count)
+
+
+@router.get("/applications/{job_id}/status")
+def get_job_application_status(
+    session: SessionDep, current_user: CurrentUser, job_id: uuid.UUID
+) -> Any:
+    """
+    Fetch the application status of the current user for a specific job.
+    """
+    candidate = crud.get_candidate_by_email(session=session, email=current_user.email)
+    if not candidate:
+        raise HTTPException(
+            status_code=403, detail="Only for candidates"
+        )
+
+    job = crud.get_job_by_id(session=session, job_id=job_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    application_status = crud.get_job_applications_status(
+        session=session, candidate_id=candidate.id, job_id=job_id
+    )
+
+    return application_status
+
+
+@router.patch("/applications/{application_id}/status", response_model=JobApplicationPublic)
+def update_job_application_status(
+    session: SessionDep,
+    current_user: CurrentUser,
+    application_id: uuid.UUID,
+    application_status: JobApplicationStatusUpdate
+) -> Any:
+    """
+    Update the status of a job application. (Only for clients)
+    """
+    client = crud.get_client_by_email(session=session, email=current_user.email)
+    if not client:
+        raise HTTPException(status_code=403, detail="Only for clients")
+
+    application = crud.get_job_application_by_id(session=session, application_id=application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Job application not found")
+
+    if application.job.client_id != client.id:
+        raise HTTPException(status_code=403, detail="You are not authorized to update this application")
+
+    application = crud.update_job_application_status(
+        session=session, application=application,
+        application_status=application_status.status
+    )
+
+    return JobApplicationPublic(
+        **application.dict(),
+        candidate_details=application.candidate,
+        job_details=JobPublic(
+            **application.job.dict(),
+            client_details=application.job.client
+        )
+    )
