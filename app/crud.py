@@ -473,10 +473,9 @@ def get_job_applications_by_job_id(
     return applications, total_count
 
 
-def get_job_application_by_id(
-    session: Session, application_id: uuid.UUID
-) -> JobApplication | None:
-    return session.get(JobApplication, application_id)
+def get_job_application_by_id(session: Session, application_id=uuid.UUID):
+    job_application = session.get(JobApplication, application_id)
+    return job_application
 
 
 def get_job_applications_by_candidate_id(

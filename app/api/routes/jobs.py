@@ -279,6 +279,29 @@ def get_my_job_applications(
     return JobApplicationsPublic(data=applications, count=count)
 
 
+@router.get("/applications/{application_id}", response_model=JobApplicationPublic)
+def get_job_application_by_id(
+    session: SessionDep, current_user: CurrentUser, application_id: uuid.UUID
+) -> Any:
+    """
+    Get the job application by id
+    """
+    job_application = crud.get_job_application_by_id(
+        session=session, application_id=application_id
+    )
+    if not job_application:
+        raise HTTPException(status_code=404, detail="Job application not found")
+
+    return JobApplicationPublic(
+        **job_application.dict(),
+        candidate_details=job_application.candidate,
+        job_details=JobPublic(
+            **job_application.job.dict(),
+            client_details=job_application.job.client,
+        )
+    )
+
+
 @router.get("/{job_id}/applications", response_model=JobApplicationsPublic)
 def get_job_applications_by_job_id(
     session: SessionDep, current_user: CurrentUser, job_id: uuid.UUID,

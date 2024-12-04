@@ -4,8 +4,8 @@ from pydantic import BaseModel, EmailStr, condecimal
 from sqlmodel import SQLModel, Field
 from typing import Optional, List
 from enum import Enum
-from app.api.schemas.candidates import CandidatePrivate
-from app.api.schemas.clients import ClientPrivate
+from app.api.schemas.candidates import CandidatePublic
+from app.api.schemas.clients import ClientPublic
 
 
 class JobTypeEnum(str, Enum):
@@ -70,7 +70,7 @@ class JobSearch(BaseModel):
 
 class JobPublic(JobBase):
     application_status: Optional[ApplicationStatusEnum] = None
-    client_details: Optional[ClientPrivate] = None
+    client_details: Optional[ClientPublic] = None
     created_at: datetime.datetime
     id: uuid.UUID
 
@@ -135,7 +135,7 @@ class JobApplicationStatusUpdate(BaseModel):
 
 class JobApplicationPublic(JobApplicationBase):
     job_details: Optional[JobPublic] = None
-    candidate_details: Optional[CandidatePrivate] = None
+    candidate_details: Optional[CandidatePublic] = None
     created_at: datetime.datetime
     job_id: uuid.UUID
     candidate_id: uuid.UUID
