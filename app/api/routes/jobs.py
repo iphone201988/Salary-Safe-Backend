@@ -1,16 +1,17 @@
 import uuid
 from typing import Optional, List, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import func, select
 
 from app import crud
+from app.salary_recommendation import calculate_final_salary
 from app.api.deps import (
     CurrentUser,
     SessionDep,
     get_current_active_superuser,
 )
-from app.models import Client, Job, JobApplication
+from app.models import Client, Job, JobApplication, Skills
 from app.api.schemas.jobs import *
 from app.api.schemas.utils import Message
 
@@ -402,3 +403,108 @@ def update_job_application_status(
             client_details=application.job.client
         )
     )
+
+
+class CreateSkill(SQLModel):
+    name: str
+    weight: float = 1.0
+    market_premium: float = 0.0
+
+
+@router.post("/skills", response_model=Skills)
+def create_skill(session: SessionDep, skill: CreateSkill):
+
+    skill = session.query(Skills).filter(Skills.name == skill.name).first()
+    if skill:
+        raise HTTPException(status_code=400, detail="Skill already exists")
+
+    skill = CreateSkill.model_validate(skill)
+    session.add(skill)
+    session.commit()
+    session.refresh(skill)
+    return skill
+
+
+@router.get("/skills", response_model=List[Skills])
+def get_all_skills(session: SessionDep, current_user: CurrentUser):
+    """
+    Get all skills.
+    """
+    skills = session.exec(select(Skills)).all()
+    return skills
+
+
+@router.get("/skills/search", response_model=List[Skills])
+def search_skills(
+    session: SessionDep, current_user: CurrentUser,
+    query: str = Query(..., min_length=2, max_length=50)
+):
+    """
+    Search for skills by name.
+    """
+    skills = session.exec(
+        select(Skills).where(Skills.name.ilike(f"%{query}%"))).all()
+    if not skills:
+        raise HTTPException(status_code=404, detail="No skills found")
+    return skills
+
+
+@router.post("/{job_id}/salary-recommendation")
+def salary_recommendation(
+    session: SessionDep, current_user: CurrentUser,
+    job_id: uuid.UUID, candidate_id: uuid.UUID
+):
+    """
+    Salary Recommendation for candidates for a specific job
+    """
+    candidate = session.get(Candidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    job = crud.get_job_by_id(session=session, job_id=job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Example Inputs
+    I = 85000 # Internal median salary
+    Wi = 0.4 # Internal weight
+    E = 92000 # External market salary
+    We = 0.5 # External weight
+
+    skills = [4, 3, 5] # Proficiency for each skill (scale: 1–5)
+    skill_weights = [1.3, 1.1, 1.5] # Weight for each skill
+    market_premiums = [3000, 2500, 4000] # Market premium for each skill
+
+    location_multiplier = 1.1 # High-cost region
+    trend_percentage = 3 # Forecasted salary trend (3%)
+
+    C = 5000 # Customization factor
+    Wc = 0.1 # Customization weight
+
+    risk_percentage = 5 # Risk premium percentage
+    benefits = 10000 # Value of benefits/equity
+
+    transparency_score = 4 # Transparency score (1–5)
+    transparency_weight = 0.02 # Weight for transparency
+
+    equity_score = 4 # Diversity and equity score (1–5)
+    diversity_premium = 2000 # Premium for diversity
+
+    flexibility_score = 3 # Flexibility score (1–5)
+    flexibility_multiplier = 1500 # Flexibility multiplier
+
+    well_being_value = 3000 # Well-being benefits value
+
+    functional_multiplier = 1.05 # Industry adjustment (e.g., 5% increase)
+    market_demand_multiplier = 1.03 # Market demand adjustment (e.g., 3% increase)
+
+    # Calculate salary
+    recommended_salary = calculate_final_salary(
+        I, Wi, E, We, skills, skill_weights, market_premiums,
+        location_multiplier, trend_percentage, C, Wc, risk_percentage,
+        benefits, transparency_score, transparency_weight,
+        equity_score, diversity_premium, flexibility_score,
+        flexibility_multiplier, well_being_value, functional_multiplier,
+        market_demand_multiplier
+    )
+    return recommended_salary
