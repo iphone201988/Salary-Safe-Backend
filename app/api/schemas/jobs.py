@@ -145,3 +145,9 @@ class JobApplicationPublic(JobApplicationBase):
 class JobApplicationsPublic(SQLModel):
     data: List[JobApplicationPublic]
     count: int
+
+
+class CreateSkill(SQLModel):
+    name: str
+    weight: float = 1.0
+    market_premium: float = 0.0

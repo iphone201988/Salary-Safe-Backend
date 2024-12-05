@@ -1,16 +1,17 @@
 import uuid
 from typing import Optional, List, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import func, select
 
 from app import crud
+from app.salary_recommendation import calculate_final_salary
 from app.api.deps import (
     CurrentUser,
     SessionDep,
     get_current_active_superuser,
 )
-from app.models import Client, Job, JobApplication
+from app.models import *
 from app.api.schemas.jobs import *
 from app.api.schemas.utils import Message
 
@@ -402,3 +403,86 @@ def update_job_application_status(
             client_details=application.job.client
         )
     )
+
+
+@router.get("/skills/search", response_model=List[str])
+def search_skills(
+    session: SessionDep, current_user: CurrentUser,
+    query: str = Query(..., min_length=2, max_length=50)
+):
+    """
+    Search for skills by name.
+    """
+    skills = session.exec(
+        select(Skills.name).where(Skills.name.ilike(f"%{query}%"))).all()
+    if not skills:
+        raise HTTPException(status_code=404, detail="No skills found")
+    return skills
+
+
+@router.get("/locations/search", response_model=List[Locations])
+def search_locations(
+    session: SessionDep, current_user: CurrentUser,
+    query: str = Query(..., min_length=2, max_length=50)
+):
+    """
+    Search for locations by city name.
+    """
+    locations = session.exec(
+        select(Locations).where(Locations.city.ilike(f"%{query}%"))
+    ).all()
+    if not locations:
+        raise HTTPException(status_code=404, detail="No locations found")
+    return locations
+
+
+@router.get("/industries/search", response_model=List[Industry])
+def search_industries(
+    session: SessionDep, current_user: CurrentUser,
+    query: str = Query(..., min_length=2, max_length=255)
+):
+    """
+    Search for industries by name.
+    """
+    industries = session.exec(
+        select(Industry).where(Industry.industry.ilike(f"%{query}%"))
+    ).all()
+    if not industries:
+        raise HTTPException(status_code=404, detail="No industries found")
+    return industries
+
+
+@router.post("/{job_id}/salary-recommendation")
+def salary_recommendation(
+    session: SessionDep, current_user: CurrentUser,
+    job_id: uuid.UUID, candidate_id: uuid.UUID
+):
+    """
+    Salary Recommendation for candidates for a specific job
+    """
+    candidate = session.get(Candidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    job = crud.get_job_by_id(session=session, job_id=job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    I, Wi, E, We, skills_profiency, skill_weights, market_premiums, \
+    location_multiplier, trend_percentage, C, Wc, risk_percentage, \
+    benefits, transparency_score, transparency_weight, \
+    equity_score, diversity_premium, flexibility_score, \
+    flexibility_multiplier, well_being_value, functional_multiplier, \
+    market_demand_multiplier = \
+        crud.get_salary_recommendation_data(session, candidate)
+
+    # Calculate salary
+    recommended_salary = calculate_final_salary(
+        I, Wi, E, We, skills_profiency, skill_weights, market_premiums,
+        location_multiplier, trend_percentage, C, Wc, risk_percentage,
+        benefits, transparency_score, transparency_weight,
+        equity_score, diversity_premium, flexibility_score,
+        flexibility_multiplier, well_being_value, functional_multiplier,
+        market_demand_multiplier
+    )
+    return round(recommended_salary)

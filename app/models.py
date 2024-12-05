@@ -66,3 +66,26 @@ class JobApplication(JobApplicationBase, table=True):
     candidate_id: uuid.UUID = Field(foreign_key="candidate_profile.id")
     candidate: Candidate = Relationship(back_populates="job_applications")
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Skills(SQLModel, table=True):
+    __tablename__ = "skills"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(unique=True, index=True)
+    weight: float = Field(default=1.0, ge=0)
+    market_premium: float = Field(default=2500, ge=0)
+
+
+class Locations(SQLModel, table=True):
+    __tablename__ = "locations"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    city: str = Field(unique=True, index=True)
+    country: str = Field(default=None)
+    location_multiplier: float = Field(default=1.4, ge=0)
+
+
+class Industry(SQLModel, table=True):
+    __tablename__ = "industry"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    industry: str = Field(unique=True, max_length=255)
+    trend_percentage: float = Field(default=2.4, ge=0)
