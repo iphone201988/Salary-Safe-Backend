@@ -29,105 +29,29 @@ router = APIRouter()
 @router.post("/register", response_model=CandidatePublic)
 async def register_candidate(
     session: SessionDep,
-    full_name: str = Form(...),
-    email: EmailStr = Form(...),
-    password: Optional[str] = Form(None),
-    phone_number: Optional[str] = Form(None),
-    location: Optional[str] = Form(None),
-    current_job_title: Optional[str] = Form(None),
-    linkedin_profile_url: Optional[str] = Form(None),
-    job_titles_of_interest: Optional[str] = Form(None),
-    total_years_of_experience: Optional[int] = Form(None),
-    education_level: Optional[str] = Form(None),
-    key_skills: Optional[List[str]] = Form(None),
-    general_salary_range: Optional[str] = Form(None),
-    preferred_salary_type: Optional[str] = Form(None),
-    open_to_performance_based_compensation: bool = Form(False),
-    willing_to_negociate: bool = Form(False),
-    minimum_acceptable_salary: Optional[int] = Form(None),
-    preferred_benefits: Optional[List[str]] = Form(None),
-    view_salary_expectations: Optional[str] = Form(None),
-    hide_profile_from_current_employer: bool = Form(False),
-    industries_of_interest: Optional[List[str]] = Form([]),
-    job_type_preferences: Optional[List[str]] = Form(None),
-    actively_looking_for_new_job: bool = Form(False),
-    career_goals: Optional[str] = Form(None),
-    professional_development_areas: Optional[List[str]] = Form([]),
-    role_specific_salary_adjustments: Optional[str] = Form(None),
-    interested_in_salary_benchmarks: bool = Form(False),
-    invite_employer: Optional[List[str]] = Form([]),
-    notification_preferences: Optional[List[str]] = Form([]),
-    job_alerts_frequency: Optional[str] = Form(None),
-    referral_source: Optional[str] = Form(None),
-    referral_code: Optional[str] = Form(None),
-    terms_accepted: bool = Form(True),
-    resume_upload: Optional[UploadFile] = Form(None),
-    cover_letter_upload: Optional[UploadFile] = Form(None),
-) -> Any:
+    candidate_in: CandidateCreate
+) -> CandidatePublic:
     """
     Register a new candidate.
     """
     # Check if the email is already registered
     existing_user_email = (
-        crud.get_client_by_email(session=session, email=email) or
-        crud.get_candidate_by_email(session=session, email=email)
+        crud.get_client_by_email(session=session, email=candidate_in.email) or
+        crud.get_candidate_by_email(session=session, email=candidate_in.email)
     )
     if existing_user_email:
         raise HTTPException(status_code=400, detail="Email already registered")
 
     # Check if the phone number is already registered
-    if phone_number:
+    if candidate_in.phone_number:
         existing_phone_number = (
-            crud.get_client_by_phone_number(session=session, phone_number=phone_number) or
-            crud.get_candidate_by_phone_number(session=session, phone_number=phone_number)
+            crud.get_client_by_phone_number(session=session, phone_number=candidate_in.phone_number) or
+            crud.get_candidate_by_phone_number(session=session, phone_number=candidate_in.phone_number)
         )
         if existing_phone_number:
             raise HTTPException(status_code=400, detail="Phone number already registered")
 
-    resume_url, cover_letter_url = None, None
-    if resume_upload:
-        resume_url = await save_file(resume_upload, "resumes")
-    if cover_letter_upload:
-        cover_letter_url = await save_file(cover_letter_upload, "cover_letters")
-
-    # Create candidate input data dictionary
-    candidate_data = {
-        "full_name": full_name,
-        "email": email,
-        "password": password,
-        "phone_number": phone_number,
-        "location": location,
-        "current_job_title": current_job_title,
-        "linkedin_profile_url": linkedin_profile_url,
-        "job_titles_of_interest": job_titles_of_interest,
-        "total_years_of_experience": total_years_of_experience,
-        "education_level": education_level,
-        "key_skills": key_skills,
-        "general_salary_range": general_salary_range,
-        "preferred_salary_type": preferred_salary_type,
-        "open_to_performance_based_compensation": open_to_performance_based_compensation,
-        "willing_to_negociate": willing_to_negociate,
-        "minimum_acceptable_salary": minimum_acceptable_salary,
-        "preferred_benefits": preferred_benefits,
-        "view_salary_expectations": view_salary_expectations,
-        "hide_profile_from_current_employer": hide_profile_from_current_employer,
-        "industries_of_interest": industries_of_interest,
-        "job_type_preferences": job_type_preferences,
-        "actively_looking_for_new_job": actively_looking_for_new_job,
-        "career_goals": career_goals,
-        "professional_development_areas": professional_development_areas,
-        "role_specific_salary_adjustments": role_specific_salary_adjustments,
-        "interested_in_salary_benchmarks": interested_in_salary_benchmarks,
-        "resume_upload": resume_url,
-        "cover_letter_upload": cover_letter_url,
-        "invite_employer": invite_employer,
-        "notification_preferences": notification_preferences,
-        "job_alerts_frequency": job_alerts_frequency,
-        "referral_source": referral_source,
-        "referral_code": referral_code,
-        "terms_accepted": terms_accepted,
-    }
-    candidate = crud.create_candidate(session=session, candidate_in=candidate_data)
+    candidate = crud.create_candidate(session=session, candidate_in=candidate_in)
     return candidate
 
 
@@ -217,19 +141,103 @@ def get_candidate_by_id(
 
 
 @router.patch("/me", response_model=CandidatePublic)
-def update_current_candidate(
-    session: SessionDep, candidate_in: CandidateUpdate, current_user: CurrentUser
+async def update_current_candidate(
+    session: SessionDep,
+    current_user: CurrentUser,
+    full_name: Optional[str] = Form(None),
+    phone_number: Optional[str] = Form(None),
+    location: Optional[str] = Form(None),
+    current_job_title: Optional[str] = Form(None),
+    linkedin_profile_url: Optional[str] = Form(None),
+    job_titles_of_interest: Optional[str] = Form(None),
+    total_years_of_experience: Optional[int] = Form(None),
+    education_level: Optional[str] = Form(None),
+    key_skills: Optional[List[str]] = Form([]),
+    general_salary_range: Optional[str] = Form(None),
+    preferred_salary_type: Optional[str] = Form(None),
+    open_to_performance_based_compensation: Optional[bool] = Form(None),
+    willing_to_negociate: Optional[bool] = Form(None),
+    minimum_acceptable_salary: Optional[int] = Form(None),
+    preferred_benefits: Optional[List[str]] = Form([]),
+    view_salary_expectations: Optional[str] = Form(None),
+    hide_profile_from_current_employer: Optional[bool] = Form(None),
+    industries_of_interest: Optional[List[str]] = Form([]),
+    job_type_preferences: Optional[List[str]] = Form([]),
+    actively_looking_for_new_job: Optional[bool] = Form(None),
+    career_goals: Optional[str] = Form(None),
+    professional_development_areas: Optional[List[str]] = Form([]),
+    role_specific_salary_adjustments: Optional[str] = Form(None),
+    interested_in_salary_benchmarks: Optional[bool] = Form(None),
+    invite_employer: Optional[List[str]] = Form([]),
+    notification_preferences: Optional[List[str]] = Form([]),
+    job_alerts_frequency: Optional[str] = Form(None),
+    referral_source: Optional[str] = Form(None),
+    referral_code: Optional[str] = Form(None),
+    terms_accepted: Optional[bool] = Form(None),
+    avatar: Optional[UploadFile] = Form(None),
+    resume_upload: Optional[UploadFile] = Form(None),
+    cover_letter_upload: Optional[UploadFile] = Form(None),
 ) -> Any:
     """
     Update the currently logged-in candidate's profile.
     """
-    candidate = crud.get_candidate_by_email(session=session, email=current_user.email)
+    candidate = crud.get_candidate_by_email(
+        session=session, email=current_user.email
+    )
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
-    candidate = crud.update_candidate(
-        session=session, db_candidate=candidate, candidate_in=candidate_in)
-    return candidate
+    avatar = await save_file(avatar, "avatar") if avatar else None
+    resume_url = await save_file(resume_upload, "resumes") if resume_upload else None
+    cover_letter_url = (
+        await save_file(cover_letter_upload, "cover_letters") if cover_letter_upload else None
+    )
+
+    candidate_data = {
+        "full_name": full_name,
+        "email": current_user.email,
+        "phone_number": phone_number,
+        "location": location,
+        "current_job_title": current_job_title,
+        "linkedin_profile_url": linkedin_profile_url,
+        "job_titles_of_interest": job_titles_of_interest,
+        "total_years_of_experience": total_years_of_experience,
+        "education_level": education_level,
+        "key_skills": key_skills or None,
+        "general_salary_range": general_salary_range,
+        "preferred_salary_type": preferred_salary_type,
+        "open_to_performance_based_compensation": open_to_performance_based_compensation,
+        "willing_to_negociate": willing_to_negociate,
+        "minimum_acceptable_salary": minimum_acceptable_salary,
+        "preferred_benefits": preferred_benefits or None,
+        "view_salary_expectations": view_salary_expectations,
+        "hide_profile_from_current_employer": hide_profile_from_current_employer,
+        "industries_of_interest": industries_of_interest or None,
+        "job_type_preferences": job_type_preferences or None,
+        "actively_looking_for_new_job": actively_looking_for_new_job,
+        "career_goals": career_goals,
+        "professional_development_areas": professional_development_areas or None,
+        "role_specific_salary_adjustments": role_specific_salary_adjustments,
+        "interested_in_salary_benchmarks": interested_in_salary_benchmarks,
+        "avatar": avatar,
+        "resume_upload": resume_url,
+        "cover_letter_upload": cover_letter_url,
+        "invite_employer": invite_employer or None,
+        "notification_preferences": notification_preferences or None,
+        "job_alerts_frequency": job_alerts_frequency,
+        "referral_source": referral_source,
+        "referral_code": referral_code,
+        "terms_accepted": terms_accepted,
+    }
+
+    filtered_data = {k: v for k, v in candidate_data.items() if v is not None}
+    candidate_in = CandidateUpdate(**filtered_data)
+
+    updated_candidate = crud.update_candidate(
+        session=session, db_candidate=candidate, candidate_in=candidate_in
+    )
+
+    return updated_candidate
 
 
 @router.delete("/me", response_model=Message)

@@ -51,10 +51,10 @@ def create_candidate(
     *, session: Session, candidate_in: CandidateCreate
 ) -> Candidate:
     db_candidate = Candidate.model_validate(candidate_in)
-    if candidate_in.get("password", ""):
+    if candidate_in.password:
         db_candidate = Candidate.model_validate(
             candidate_in, update={
-                "hashed_password": get_password_hash(candidate_in["password"])}
+                "hashed_password": get_password_hash(candidate_in.password)}
         )
     session.add(db_candidate)
     session.commit()
@@ -120,7 +120,7 @@ def authenticate_candidate(
 
 
 def update_candidate(
-    *, session: Session,db_candidate: Candidate,
+    *, session: Session, db_candidate: Candidate,
     candidate_in: CandidateUpdate
 ) -> Candidate:
     candidate_data = candidate_in.model_dump(exclude_unset=True)

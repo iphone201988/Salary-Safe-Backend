@@ -6,7 +6,8 @@ from typing import Optional, List
 
 class ClientBase(SQLModel):
     email: EmailStr = Field(max_length=255, unique=True)
-    company_name: Optional[str] = Field(max_length=255)
+    company_name: Optional[str] = Field(default=None, max_length=255)
+    avatar: Optional[str] = Field(default=None)
     industry: Optional[str] = Field(default=None)
     company_size: Optional[str] = Field(default=None)
     headquarters_location: Optional[str] = Field(default=None, max_length=255)

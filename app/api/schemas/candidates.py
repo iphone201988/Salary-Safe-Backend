@@ -4,8 +4,13 @@ from sqlmodel import SQLModel, Field, Column, JSON
 from typing import Optional, List
 
 
+class CandidateSkill(SQLModel):
+    name: str
+    profiency: conint(ge=0, le=5)
+
+
 class CandidateBase(SQLModel):
-    full_name: str = Field(max_length=255)
+    full_name: Optional[str] = Field(default=None, max_length=255)
     email: EmailStr = Field(max_length=255, unique=True)
     phone_number: Optional[str] = Field(default=None, max_length=15, unique=True)
     location: Optional[str] = Field(default=None, max_length=255)
@@ -14,7 +19,8 @@ class CandidateBase(SQLModel):
     job_titles_of_interest: Optional[str] = Field(default=None)
     total_years_of_experience: Optional[int] = Field(default=None)
     education_level: Optional[str] = Field(default=None)
-    key_skills: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    key_skills: Optional[List[CandidateSkill]] = Field(default_factory=list, sa_column=Column(JSON))
+    skill_premium: Optional[float] = None
     general_salary_range: Optional[str] = Field(default=None, max_length=255)
     preferred_salary_type: Optional[str] = Field(default=None)
     open_to_performance_based_compensation: bool = False
@@ -30,6 +36,7 @@ class CandidateBase(SQLModel):
     professional_development_areas: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     role_specific_salary_adjustments: Optional[str] = Field(default=None)
     interested_in_salary_benchmarks: bool = False
+    avatar: Optional[str] = Field(default=None)
     resume_upload: Optional[str] = Field(default=None)
     cover_letter_upload: Optional[str] = Field(default=None)
     invite_employer: List[dict] = Field(default_factory=list, sa_column=Column(JSON))
