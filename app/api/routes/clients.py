@@ -23,7 +23,7 @@ from app.api.schemas.utils import Message, Token
 router = APIRouter()
 
 
-@router.post("/register", response_model=ClientPublic)
+@router.post("/register", response_model=Token)
 def register_client(client_in: ClientCreate, session: SessionDep) -> Any:
     """
     Register a new client.
@@ -48,7 +48,16 @@ def register_client(client_in: ClientCreate, session: SessionDep) -> Any:
 
 
     client = crud.create_client(session=session, client_in=client_in)
-    return client
+
+    access_token_expires = timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    return Token(
+        access_token=security.create_access_token(
+            client.id, expires_delta=access_token_expires
+        )
+    )
 
 
 @router.post("/login", response_model=Token)

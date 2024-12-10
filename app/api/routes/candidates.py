@@ -26,11 +26,11 @@ from app.api.schemas.utils import (
 router = APIRouter()
 
 
-@router.post("/register", response_model=CandidatePublic)
+@router.post("/register", response_model=Token)
 async def register_candidate(
     session: SessionDep,
     candidate_in: CandidateCreate
-) -> CandidatePublic:
+) -> Token:
     """
     Register a new candidate.
     """
@@ -52,7 +52,16 @@ async def register_candidate(
             raise HTTPException(status_code=400, detail="Phone number already registered")
 
     candidate = crud.create_candidate(session=session, candidate_in=candidate_in)
-    return candidate
+
+    access_token_expires = timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    return Token(
+        access_token=security.create_access_token(
+            candidate.id, expires_delta=access_token_expires
+        )
+    )
 
 
 @router.post("/login", response_model=Token)
@@ -71,7 +80,7 @@ def login_candidate(candidate_in: CandidateLogin, session: SessionDep) -> Any:
         raise HTTPException(status_code=400, detail="Invalid credentials")
     elif not candidate.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
-    
+
     return Token(
         access_token=security.create_access_token(
             candidate.id, expires_delta=access_token_expires
