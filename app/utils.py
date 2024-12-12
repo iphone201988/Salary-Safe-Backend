@@ -1,6 +1,7 @@
 import logging
 import os
-from fastapi import UploadFile
+import json
+from fastapi import UploadFile, HTTPException
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -127,17 +128,41 @@ def verify_password_reset_token(token: str) -> str | None:
         return None
 
 
-async def save_file(file: UploadFile, folder: str) -> str:
-    # Define the file path
-    file_extension = file.filename.split('.')[-1]
-    file_id = f"{uuid.uuid4()}.{file_extension}"
-    file_path = os.path.join("uploads", folder, file_id)
+async def save_file(
+    file_name: str, file: UploadFile, folder: str
+) -> str:
+    try:
+        # Validate file extension
+        file_extension = file.filename.split('.')[-1].lower()
+        allowed_extensions = {"jpg", "png", "pdf", "docx"}
+        if file_extension not in allowed_extensions:
+            raise HTTPException(
+                status_code=400, detail=f"File type {file_extension} is not allowed"
+            )
 
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        # Define the file path
+        file_id = f"{file_name}.{file_extension}"
+        file_path = os.path.join("uploads", folder, file_id)
 
-    # Save file
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-    return file_path
+        # Save file
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+
+        return file_path
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid file, unable to save: {str(e)}"
+        )
+
+
+# Helper function to safely parse JSON strings
+def parse_json_string_field(field: str, field_name: str):
+    try:
+        return json.loads(field) if field else None
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid JSON for {field_name}"
+        )

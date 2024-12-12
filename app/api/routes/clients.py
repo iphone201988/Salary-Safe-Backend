@@ -9,6 +9,7 @@ from fastapi import (
 from sqlmodel import func, select
 
 from app import crud
+from app.utils import save_file, parse_json_string_field
 from app.core import security
 from app.core.config import settings
 from app.api.deps import (
@@ -120,10 +121,10 @@ async def update_current_client(
     headquarters_location: Optional[str] = Form(None),
     primary_contact_person: Optional[str] = Form(None),
     contact_phone_number: Optional[str] = Form(None),
-    primary_hiring_goals: Optional[List[str]] = Form(None),
-    preferred_job_locations: Optional[List[str]] = Form(None), 
-    roles_of_interest: Optional[List[str]] = Form(None),
-    job_types: Optional[List[str]] = Form(None),
+    primary_hiring_goals: Optional[str] = Form(None),
+    preferred_job_locations: Optional[str] = Form(None), 
+    roles_of_interest: Optional[str] = Form(None),
+    job_types: Optional[str] = Form(None),
     dashboard_metrics: Optional[str] = Form(None),
     role_specific_customization: Optional[bool] = Form(None),
     salary_benchmarking_preference: Optional[str] = Form(None),
@@ -134,7 +135,7 @@ async def update_current_client(
     preferred_report_frequency: Optional[str] = Form(None),
     automated_updates: Optional[str] = Form(None),
     candidate_feedback_analysis: Optional[str] = Form(None),
-    invite_team_member: Optional[List[dict]] = Form(None),
+    invite_team_member: Optional[str] = Form(None),
     referral_source: Optional[str] = Form(None),
     referral_code: Optional[str] = Form(None),
     terms_accepted: Optional[bool] = Form(None)
@@ -146,7 +147,19 @@ async def update_current_client(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    avatar = await save_file(avatar, "avatar") if avatar else None
+    # Parse JSON str fields
+    job_types = parse_json_string_field(job_types, "job_types")
+    primary_hiring_goals = parse_json_string_field(
+            primary_hiring_goals, "primary_hiring_goals")
+    preferred_job_locations = parse_json_string_field(
+            preferred_job_locations, "preferred_job_locations")
+    roles_of_interest = parse_json_string_field(
+            roles_of_interest, "roles_of_interest")
+    invite_team_member = parse_json_string_field(
+            invite_team_member, "invite_team_member")
+
+    # Handle file upload
+    avatar = await save_file(client.id, avatar, "avatar") if avatar else None
 
     client_data = {
         "company_name": company_name,
@@ -178,13 +191,14 @@ async def update_current_client(
     }
 
     # Remove keys with None value to avoid overwriting existing values with null
-    client_data = {k: v for k, v in client_data.items() if v is not None}
-    client_data = ClientUpdate(**client_data)
+    filtered_data = {k: v for k, v in client_data.items() if v is not None}
+    client_in = ClientUpdate(**filtered_data)
 
-    client = crud.update_client(
-        session=session, db_client=client, client_in=client_data
+    updated_client = crud.update_client(
+        session=session, db_client=client, client_in=client_in
     )
-    return client
+
+    return updated_client
 
 
 @router.delete("/me", response_model=Message)

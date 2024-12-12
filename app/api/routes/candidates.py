@@ -9,7 +9,7 @@ from fastapi import (
 from sqlmodel import func, select
 
 from app import crud
-from app.utils import save_file
+from app.utils import save_file, parse_json_string_field
 from app.core import security
 from app.core.config import settings
 from app.api.deps import (
@@ -161,24 +161,24 @@ async def update_current_candidate(
     job_titles_of_interest: Optional[str] = Form(None),
     total_years_of_experience: Optional[int] = Form(None),
     education_level: Optional[str] = Form(None),
-    key_skills: Optional[List[str]] = Form([]),
+    key_skills: Optional[str] = Form(None),
     general_salary_range: Optional[str] = Form(None),
     preferred_salary_type: Optional[str] = Form(None),
     open_to_performance_based_compensation: Optional[bool] = Form(None),
     willing_to_negociate: Optional[bool] = Form(None),
     minimum_acceptable_salary: Optional[int] = Form(None),
-    preferred_benefits: Optional[List[str]] = Form([]),
+    preferred_benefits: Optional[str] = Form(None),
     view_salary_expectations: Optional[str] = Form(None),
     hide_profile_from_current_employer: Optional[bool] = Form(None),
-    industries_of_interest: Optional[List[str]] = Form([]),
-    job_type_preferences: Optional[List[str]] = Form([]),
+    industries_of_interest: Optional[str] = Form(None),
+    job_type_preferences: Optional[str] = Form(None),
     actively_looking_for_new_job: Optional[bool] = Form(None),
     career_goals: Optional[str] = Form(None),
-    professional_development_areas: Optional[List[str]] = Form([]),
+    professional_development_areas: Optional[str] = Form(None),
     role_specific_salary_adjustments: Optional[str] = Form(None),
     interested_in_salary_benchmarks: Optional[bool] = Form(None),
-    invite_employer: Optional[List[str]] = Form([]),
-    notification_preferences: Optional[List[str]] = Form([]),
+    invite_employer: Optional[str] = Form(None),
+    notification_preferences: Optional[str] = Form(None),
     job_alerts_frequency: Optional[str] = Form(None),
     referral_source: Optional[str] = Form(None),
     referral_code: Optional[str] = Form(None),
@@ -196,11 +196,26 @@ async def update_current_candidate(
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
-    avatar = await save_file(avatar, "avatar") if avatar else None
-    resume_url = await save_file(resume_upload, "resumes") if resume_upload else None
-    cover_letter_url = (
-        await save_file(cover_letter_upload, "cover_letters") if cover_letter_upload else None
-    )
+    # Parse JSON str fields
+    key_skills = parse_json_string_field(key_skills, "key_skills")
+    preferred_benefits = parse_json_string_field(
+            preferred_benefits, "preferred_benefits")
+    industries_of_interest = parse_json_string_field(
+            industries_of_interest, "industries_of_interest")
+    job_type_preferences = parse_json_string_field(
+            job_type_preferences, "job_type_preferences")
+    professional_development_areas = parse_json_string_field(
+            professional_development_areas, "professional_development_areas")
+    invite_employer = parse_json_string_field(
+            invite_employer, "invite_employer")
+    notification_preferences = parse_json_string_field(
+            notification_preferences, "notification_preferences")
+
+     # Handle file upload
+    avatar = await save_file(candidate.id, avatar, "avatar") if avatar else None
+    resume_url = await save_file(candidate.id, resume_upload, "resumes") if resume_upload else None
+    cover_letter_url = await save_file(candidate.id, cover_letter_upload, "cover_letters") \
+            if cover_letter_upload else None
 
     candidate_data = {
         "full_name": full_name,
@@ -212,27 +227,27 @@ async def update_current_candidate(
         "job_titles_of_interest": job_titles_of_interest,
         "total_years_of_experience": total_years_of_experience,
         "education_level": education_level,
-        "key_skills": key_skills or None,
+        "key_skills": key_skills,
         "general_salary_range": general_salary_range,
         "preferred_salary_type": preferred_salary_type,
         "open_to_performance_based_compensation": open_to_performance_based_compensation,
         "willing_to_negociate": willing_to_negociate,
         "minimum_acceptable_salary": minimum_acceptable_salary,
-        "preferred_benefits": preferred_benefits or None,
+        "preferred_benefits": preferred_benefits,
         "view_salary_expectations": view_salary_expectations,
         "hide_profile_from_current_employer": hide_profile_from_current_employer,
-        "industries_of_interest": industries_of_interest or None,
-        "job_type_preferences": job_type_preferences or None,
+        "industries_of_interest": industries_of_interest,
+        "job_type_preferences": job_type_preferences,
         "actively_looking_for_new_job": actively_looking_for_new_job,
         "career_goals": career_goals,
-        "professional_development_areas": professional_development_areas or None,
+        "professional_development_areas": professional_development_areas,
         "role_specific_salary_adjustments": role_specific_salary_adjustments,
         "interested_in_salary_benchmarks": interested_in_salary_benchmarks,
         "avatar": avatar,
         "resume_upload": resume_url,
         "cover_letter_upload": cover_letter_url,
-        "invite_employer": invite_employer or None,
-        "notification_preferences": notification_preferences or None,
+        "invite_employer": invite_employer,
+        "notification_preferences": notification_preferences,
         "job_alerts_frequency": job_alerts_frequency,
         "referral_source": referral_source,
         "referral_code": referral_code,

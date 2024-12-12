@@ -6,7 +6,7 @@ from typing import Optional, List
 
 class CandidateSkill(SQLModel):
     name: str
-    profiency: conint(ge=0, le=5)
+    proficiency: conint(ge=0, le=5)
 
 
 class CandidateBase(SQLModel):
