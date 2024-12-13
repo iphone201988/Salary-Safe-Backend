@@ -1,7 +1,7 @@
 import uuid
 import datetime
 from pydantic import BaseModel, EmailStr, condecimal
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Column, JSON
 from typing import Optional, List
 from enum import Enum
 from app.api.schemas.candidates import CandidatePublic
@@ -29,6 +29,14 @@ class JobStatusEnum(str, Enum):
     closed = "closed"
 
 
+class JobScheduleEnum(str, Enum):
+    day_shift = "day_shift"
+    morning_shift = "morning_shift"
+    evening_shift = "evening_shift"
+    night_shift = "night_shift"
+    rotational_shift = "rotational_shift"
+
+
 class ApplicationStatusEnum(str, Enum):
     pending = "pending"
     accepted = "accepted"
@@ -42,9 +50,15 @@ class JobBase(SQLModel):
     salary_min: Optional[condecimal(ge=0)] = Field(default=None)
     salary_max: Optional[condecimal(ge=0)] = Field(default=None)
     requirements: Optional[str] = Field(default=None)
-    status: JobStatusEnum = Field(default="active")
+    required_skills: Optional[List[str]] = \
+        Field(default_factory=list, sa_column=Column(JSON))
     job_type: JobTypeEnum = Field(default="fulltime")
     workplace_type: JobWorkplaceTypeEnum = Field(default="onsite")
+    schedule: JobScheduleEnum = Field(default="day_shift")
+    vacancy: Optional[int] = Field(default=1)
+    status: JobStatusEnum = Field(default="active")
+    views: Optional[int] = Field(default=None)
+    is_salary_negotiable: Optional[bool] = Field(default=False)
 
 
 class JobCreate(JobBase):
