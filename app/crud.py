@@ -5,10 +5,7 @@ from decimal import Decimal
 from sqlmodel import Session, select, func
 
 from app.core.security import get_password_hash, verify_password
-from app.models import (
-    RequestDemo, SocialProvider,
-    Candidate, Client, Job, JobApplication
-)
+from app.models import *
 from app.api.schemas.utils import RequestDemoBase, SocialLoginBase
 from app.api.schemas.candidates import CandidateBase, CandidateCreate, CandidateUpdate
 from app.api.schemas.clients import ClientBase, ClientCreate, ClientUpdate
@@ -529,3 +526,85 @@ def get_job_applications_status(
     )
     status = session.exec(statement).first()
     return status
+
+
+def get_salary_recommendation_data(session: Session, candidate: Candidate):
+    """
+    Calculating required parameters for Salary Recommendation
+    """
+    # Internal median salary
+    jobs, count = get_matching_jobs_for_candidate(
+        session=session, candidate=candidate, skip=0, limit=100
+    )
+    salaries = [(job.salary_min + job.salary_max) / 2 \
+        for job in jobs if job.salary_min and job.salary_max]
+    I = int(sum(salaries) / len(salaries) if salaries else 0)
+
+    # Candidate Skills Profiency, Weight and Market Premium
+    candidate_key_skills = [skill['name'] for skill in candidate.key_skills]
+    if not candidate_key_skills:
+        raise HTTPException(status_code=422, detail="Candidate key skills not found")
+
+    skills_data = session.exec(
+        select(Skills).where(Skills.name.in_(candidate_key_skills))
+    ).all()
+    if not skills_data:
+        raise HTTPException(status_code=422, detail="Candidate key skills not found")
+
+    skill_proficiency = [skill["proficiency"] for skill in candidate.key_skills]
+    skill_weights = [skill.weight for skill in skills_data]
+    market_premiums = [skill.market_premium for skill in skills_data]
+
+    # Candidate location multiplier
+    location_data = session.exec(
+        select(Locations).where(Locations.city == candidate.location)
+    ).first()
+    if not location_data:
+        raise HTTPException(status_code=422, detail="Candidate location not found")
+
+    location_multiplier = location_data.location_multiplier \
+        if location_data.location_multiplier else 1.1
+
+    # Candidate Industry Trends
+    industry_data = session.exec(
+        select(Industry).where(Industry.industry.in_(candidate.industries_of_interest))
+    ).first()
+    if not industry_data:
+        raise HTTPException(status_code=422, detail="Candidate industries of interest not found")
+
+    trend_percentage = industry_data.trend_percentage \
+        if industry_data.trend_percentage else 3
+
+    # Todo: Make all these values dynamic
+    Wi = 0.4 # Internal weight
+    E = 52000 # External market salary
+    We = 0.5 # External weight
+
+    C = 5000 # Customization factor
+    Wc = 0.1 # Customization weight
+
+    risk_percentage = 5 # Risk premium percentage
+    benefits = 10000 # Value of benefits/equity
+
+    transparency_score = 4 # Transparency score (1–5)
+    transparency_weight = 0.02 # Weight for transparency
+
+    equity_score = 4 # Diversity and equity score (1–5)
+    diversity_premium = 2000 # Premium for diversity
+
+    flexibility_score = 3 # Flexibility score (1–5)
+    flexibility_multiplier = 1500 # Flexibility multiplier
+
+    well_being_value = 3000 # Well-being benefits value
+
+    functional_multiplier = 1.05 # Industry adjustment (e.g., 5% increase)
+    market_demand_multiplier = 1.03 # Market demand adjustment (e.g., 3% increase)
+
+    return (
+        I, Wi, E, We, skill_proficiency, skill_weights, market_premiums,
+        location_multiplier, trend_percentage, C, Wc, risk_percentage,
+        benefits, transparency_score, transparency_weight,
+        equity_score, diversity_premium, flexibility_score,
+        flexibility_multiplier, well_being_value, functional_multiplier,
+        market_demand_multiplier
+    )
